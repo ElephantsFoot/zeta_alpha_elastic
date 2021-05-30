@@ -1,0 +1,4 @@
+/simple_indexing_service/.env
+/env/
+/db.sqlite3
+.idea
