@@ -23,14 +23,19 @@ def es_bulk(body):
 
 
 class DocksView(APIView):
-    """
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         """
+            Accepts batches of documents from user to save them in a user-specific index.
+            Returns an id of a queued job.
         """
         body = []
+        if (
+                not isinstance(request.data, list)
+                or not all(isinstance(source, dict) for source in request.data)
+        ):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         for source in request.data:
             body.append(
                 {
@@ -45,17 +50,19 @@ class DocksView(APIView):
 
 
 class JobsView(APIView):
-    """
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
+            Accepts job_id as a query_param.
+            Returns its status and (if applicable) the result.
         """
         try:
             job = Job.fetch(request.query_params["job_id"], connection=redis)
         except NoSuchJobError:
             return Response(status=status.HTTP_404_NOT_FOUND)
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(
             {
                 "status": job.get_status(),
@@ -66,12 +73,12 @@ class JobsView(APIView):
 
 
 class SearchView(APIView):
-    """
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         """
+            Accepts search requests written in elasticsearch query dsl.
+            Looks up only in user-specific index.
         """
         result = es.search(
             body=request.data,
